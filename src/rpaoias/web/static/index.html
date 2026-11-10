@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light"><title>РПАО ИАС — потоки данных</title>
+<link rel="icon" href="data:,"><link rel="stylesheet" href="/gravity-ui.css"><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body class="g-root g-root_theme_light">
+<a class="skip" href="#main">К содержимому</a>
+<div class="shell">
+<header class="topbar">
+  <div class="course"><strong>РПАО ИАС</strong><span>Вариант 2 / учебный процессор</span></div>
+  <nav id="tabs" class="tabs" role="tablist" aria-label="Разделы эмулятора">
+    <button role="tab" id="tab-program" aria-controls="page-program" aria-selected="false" tabindex="-1" data-tab="program">Программа</button>
+    <button role="tab" id="tab-execution" aria-controls="page-execution" aria-selected="true" data-tab="execution">Потоки данных</button>
+    <button role="tab" id="tab-registers" aria-controls="page-registers" aria-selected="false" tabindex="-1" data-tab="registers">Регистры</button>
+    <button role="tab" id="tab-memory" aria-controls="page-memory" aria-selected="false" tabindex="-1" data-tab="memory">Память</button>
+    <button role="tab" id="tab-history" aria-controls="page-history" aria-selected="false" tabindex="-1" data-tab="history">История</button>
+  </nav>
+  <div class="local-state"><span class="status-dot"></span><span id="connection">Подключение</span></div>
+</header>
+<section class="toolbar" aria-label="Управление исполнением">
+  <label class="example-label">Пример<select id="example" aria-label="Учебная программа"></select></label>
+  <button id="assemble" title="Собрать исходник: Ctrl+Enter">Собрать</button>
+  <span class="toolbar-separator"></span>
+  <button id="step" class="primary" title="Выполнить одну команду: F10"><span aria-hidden="true">›</span> Шаг</button>
+  <button id="run" title="Автоматическое выполнение: F5">Пуск</button>
+  <button id="run-complete" class="primary" title="Выполнить программу до HALT">До HALT</button>
+  <button id="pause" disabled>Пауза</button>
+  <button id="reset" class="quiet">Сброс</button>
+  <label class="speed-label">Темп показа<select id="speed"><option value="1200">Медленно</option><option value="650" selected>Обычно</option><option value="220">Быстро</option><option value="0">Без анимации</option></select></label>
+</section>
+<div class="live-strip"><span id="cpu-status">CPU не подключен</span><span class="live-values" id="live-values"></span></div>
+<div id="error" class="error" role="alert" hidden><span id="error-text"></span><button id="refresh">Обновить состояние</button><button id="dismiss-error" aria-label="Скрыть сообщение">×</button></div>
+<div id="dirty-note" class="notice" hidden>Исходник изменен. Перед выполнением нажми «Собрать». <button data-open="program">К исходнику</button></div>
+<main id="main">
+<section class="page" id="page-execution" role="tabpanel" aria-labelledby="tab-execution">
+  <div class="section-head"><div><div class="overline" id="step-label">НАЧАЛЬНОЕ СОСТОЯНИЕ</div><h1 id="command-title">Путь данных через процессор</h1><p id="command-source">Нажми «Шаг». Стрелки покажут, что передает процессор.</p></div><div class="head-actions"><button id="return-live" hidden>К текущему CPU</button><button id="replay" disabled>Повторить показ</button><button id="next-phase" disabled>Следующий этап</button></div></div>
+  <section id="operation-io" class="operation-io panel" aria-live="polite" aria-label="Входы и выход команды" hidden>
+    <div class="panel-title"><h2>Входы и выход команды</h2><span id="operation-name"></span></div>
+    <div class="io-grid">
+      <div class="io-side"><h3>Входы</h3><div id="operation-inputs"><p class="empty">Выполни шаг, чтобы увидеть операнды.</p></div></div>
+      <div class="io-arrow" aria-hidden="true">→</div>
+      <div class="io-side"><h3>Выход</h3><div id="operation-outputs"><p class="empty">Здесь появится результат команды.</p></div></div>
+    </div>
+  </section>
+  <div class="phase-bar" id="phases" aria-label="Этапы разбора завершенного шага">
+    <button data-phase="0"><span class="phase-number">01</span><span><strong>Выборка</strong><small>PC → команда из ОЗУ</small></span></button>
+    <button data-phase="1"><span class="phase-number">02</span><span><strong>Декодирование</strong><small>Код → операция и операнды</small></span></button>
+    <button data-phase="2"><span class="phase-number">03</span><span><strong>Операция</strong><small>Чтение источников и расчет</small></span></button>
+    <button data-phase="3"><span class="phase-number">04</span><span><strong>Фиксация</strong><small>Результат → состояние CPU</small></span></button>
+  </div>
+  <div class="diagram-card">
+    <div class="diagram-caption"><span id="view-label">Состояние после сброса</span><span>16-битные данные / 32-битные команды / 4096 байт ОЗУ</span></div>
+    <div class="diagram-scroll"><svg id="diagram" viewBox="0 0 1360 590" role="img" aria-label="Схема единой памяти и процессора с регистрами и АЛУ"></svg></div>
+    <div class="legend"><span class="legend-read">Чтение</span><span class="legend-write">Запись в ОЗУ</span><span class="legend-register">Данные регистров</span><span class="legend-address">Адрес</span><span class="legend-control">Управление</span><small>Цвет дополнен стрелками, подписями и ролями.</small></div>
+  </div>
+  <div class="explanation" aria-live="polite"><span id="phase-tag">Как читать схему</span><p id="phase-detail">ОЗУ находится вне CPU. Внутри CPU находятся регистры, декодер, устройство управления и АЛУ.</p></div>
+  <div class="details-grid">
+    <section class="panel"><div class="panel-title"><h2>Что передается</h2><span id="transfer-count"></span></div><div id="transfers" class="transfers"><p class="empty">Здесь появятся значения и направления передач.</p></div></section>
+    <section class="panel"><div class="panel-title"><h2>Изменения за команду</h2><span id="change-count"></span></div><div class="table-scroll"><table><thead><tr><th>Компонент</th><th>До</th><th>После</th></tr></thead><tbody id="changes"></tbody></table></div></section>
+  </div>
+  <details class="technical"><summary>Поля машинной инструкции и границы модели</summary><div id="instruction-fields" class="fields"></div><p>Показ — разбор завершенной команды, а не аппаратные такты. Значения на схеме до фиксации взяты из снимка «до», после фиксации — из снимка «после». IR в нашем CPU обновляется только после успешного выполнения всей команды. Шины и блоки показывают логический путь данных; их задержки и физическая схема не моделируются.</p><p>В этой архитектуре нет стека, SP и ввода-вывода. Диапазоны ОЗУ — представление одной памяти. Отдельной памяти команд нет. Арифметика берет данные из регистров или инструкции; доступ к данным ОЗУ выполняет MOV.</p></details>
+</section>
+<section class="page" id="page-program" role="tabpanel" aria-labelledby="tab-program" hidden>
+  <div class="section-head"><div><div class="overline">ИСХОДНИК И СБОРКА</div><h1>Программа процессора</h1><p>Измени исходник, собери его и перейди к потокам данных.</p></div><div class="head-actions"><button id="open-source">Открыть .asm</button><button id="save-source">Сохранить .asm</button></div></div>
+  <input type="file" id="source-file" accept=".asm,.txt" hidden>
+  <div class="subtabs" role="tablist" aria-label="Представление программы"><button class="selected" id="source-tab" role="tab" aria-selected="true">Исходник</button><button id="listing-tab" role="tab" aria-selected="false">Листинг сборки</button></div>
+  <div class="editor-frame" id="editor-view"><div class="editor-top"><span id="source-name">program.asm</span><span id="editor-state">Собранная версия</span><span>UTF-8</span></div><textarea id="source" spellcheck="false" aria-label="Исходный код ассемблера" autocapitalize="off" autocomplete="off"></textarea></div>
+  <div class="panel" id="listing-view" hidden><div class="table-scroll"><table><thead><tr><th>Адрес</th><th>Машинное слово</th><th>Строка</th><th>Исходная команда</th></tr></thead><tbody id="listing"></tbody></table></div></div>
+  <p class="footnote">MOV / ADD / ADC / SUB / MUL / CMP / SAR / переходы / NOP / HALT. Директивы: .org, .entry, .word. Комментарии: ; или //. Код исполняется существующим Python-ядром.</p>
+</section>
+<section class="page" id="page-registers" role="tabpanel" aria-labelledby="tab-registers" hidden>
+  <div class="section-head"><div><div class="overline">ТЕКУЩЕЕ СОСТОЯНИЕ CPU</div><h1>Регистры и флаги</h1><p>HEX, signed и unsigned — три представления одних битов.</p></div></div>
+  <div class="register-cards" id="register-cards"></div><div class="special-cards" id="special-cards"></div>
+</section>
+<section class="page" id="page-memory" role="tabpanel" aria-labelledby="tab-memory" hidden>
+  <div class="section-head"><div><div class="overline">ЕДИНАЯ БАЙТОВАЯ ПАМЯТЬ</div><h1>ОЗУ</h1><p>Одно слово — два байта. Инструкция — четыре байта. Порядок байтов: little-endian.</p></div><div class="head-actions"><label>Страница <select id="memory-page" aria-label="Диапазон памяти"></select></label><button id="goto-pc">К PC</button><button id="goto-result">К RESULT</button></div></div>
+  <div class="memory-map" id="memory-map"></div><p id="memory-state" class="footnote">Показано текущее состояние CPU.</p>
+  <section id="memory-result" class="result-summary panel" aria-label="Полный результат программы" hidden>
+    <h2>RESULT — 48-битное знаковое число</h2>
+    <strong id="memory-result-decimal" class="result-decimal"></strong>
+    <p id="memory-result-hex" class="result-hex"></p>
+    <div class="result-parts">
+      <div><span>Младшее слово (signed16)</span><strong id="memory-result-low"></strong></div>
+      <div><span>Старшие слова</span><strong id="memory-result-high"></strong></div>
+    </div>
+  </section>
+  <div class="panel"><div class="table-scroll"><table><thead><tr><th>Адрес</th><th>Байты</th><th>Слово HEX</th><th>signed16</th><th>Метки</th><th>Участие в последней команде</th></tr></thead><tbody id="memory-table"></tbody></table></div></div>
+</section>
+<section class="page" id="page-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+  <div class="section-head"><div><div class="overline">ЗАВЕРШЕННЫЕ КОМАНДЫ</div><h1>История исполнения</h1><p>Выбери строку, чтобы открыть потоки сохраненного шага. Текущий CPU не изменится.</p></div><div class="head-actions"><button id="export-csv">Сохранить CSV</button></div></div>
+  <div class="panel"><div class="table-scroll"><table><thead><tr><th>Шаг</th><th>PC до</th><th>Инструкция</th><th>Краткий итог</th><th>Разбор</th></tr></thead><tbody id="history"></tbody></table></div></div><p class="footnote">Хранятся последние 500 команд текущего запуска. Сборка и сброс очищают историю. Экспорт сохраняет ее в файл.</p>
+</section>
+</main>
+<footer><span>Локальная лаборатория. Команды выполняет Python.</span><span>F10 — шаг / F5 — пуск и пауза / Ctrl+Enter — сборка</span></footer>
+</div>
+</body>
+</html>

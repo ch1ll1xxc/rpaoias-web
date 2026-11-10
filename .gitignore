@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.idea/
+.DS_Store
+node_modules
+
+# Additional generated/local files
+.mypy_cache/
+.hypothesis/
+.tox/
+.nox/
+repomix-output.xml
+Thumbs.db
+Desktop.ini
+.codex
+PRODUCT.md
+*.sh
+run.cmd
+.impeccable
